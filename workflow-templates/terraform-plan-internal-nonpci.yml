@@ -1,0 +1,162 @@
+name: Check and Plan
+
+on:
+  pull_request:
+
+jobs:
+  init-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: quickPay/quickpay-base-action@release
+        with:
+          ssh_key: ${{ secrets.SSH_KEY_GITHUB }}
+
+      - uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.1.0
+
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.READ_ONLY_INFRASTRUCTURE_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.READ_ONLY_INFRASTRUCTURE_AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - uses: actions/checkout@v2
+
+      - run: |
+          cd terraform
+          terraform init -input=false
+          terraform validate
+          terraform workspace new quickpay-nonpci-stag || true
+          terraform workspace new quickpay-nonpci-prod || true
+          terraform workspace new quickpay-internal-stag || true
+          terraform workspace new quickpay-internal-prod || true
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.1.0
+
+      - uses: actions/checkout@v2
+
+      - run: |
+          cd terraform
+          terraform fmt -check -diff
+
+  tflint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: quickPay/quickpay-base-action@release
+        with:
+          ssh_key: ${{ secrets.SSH_KEY_GITHUB }}
+          
+      - uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.1.0
+
+      - uses: terraform-linters/setup-tflint@v1
+        name: Setup TFLint
+        with:
+          tflint_version: v0.34.0
+
+      - uses: actions/checkout@v2
+
+      - run: |
+          cd terraform
+          tflint --init
+          tflint --config ./.tflint.hcl
+
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    needs: [init-validate, fmt, tflint]
+    strategy:
+      matrix:
+        name:
+          - internal-stag
+          - internal-prod
+          - nonpci-stag
+          - nonpci-prod
+    steps:
+      - uses: quickPay/quickpay-base-action@release
+        with:
+          ssh_key: ${{ secrets.SSH_KEY_GITHUB }}
+
+      - uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.1.0
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+
+      - name: Extract credentials
+        id: credentials
+        env:
+          NAME: ${{ matrix.name }}
+        run: |
+          declare -A access_key_ids=(
+            ["internal-stag"]="${{ secrets.READ_ONLY_STAG_INTERNAL_AWS_ACCESS_KEY_ID }}"
+            ["internal-prod"]="${{ secrets.READ_ONLY_PROD_INTERNAL_AWS_ACCESS_KEY_ID }}"
+            ["nonpci-stag"]="${{ secrets.READ_ONLY_STAG_NONPCI_AWS_ACCESS_KEY_ID }}"
+            ["nonpci-prod"]="${{ secrets.READ_ONLY_PROD_NONPCI_AWS_ACCESS_KEY_ID }}"
+          )
+          declare -A secret_access_keys=(
+            ["internal-stag"]="${{ secrets.READ_ONLY_STAG_INTERNAL_AWS_SECRET_ACCESS_KEY }}"
+            ["internal-prod"]="${{ secrets.READ_ONLY_PROD_INTERNAL_AWS_SECRET_ACCESS_KEY }}"
+            ["nonpci-stag"]="${{ secrets.READ_ONLY_STAG_NONPCI_AWS_SECRET_ACCESS_KEY }}"
+            ["nonpci-prod"]="${{ secrets.READ_ONLY_PROD_NONPCI_AWS_SECRET_ACCESS_KEY }}"
+          )
+          echo "##[set-output name=name;]$(echo $NAME)"
+          echo "##[set-output name=access_key_id;]$(echo "${access_key_ids[$NAME]}")"
+          echo "##[set-output name=secret_access_key;]$(echo "${secret_access_keys[$NAME]}")"
+
+      - uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
+          aws-secret-access-key: ${{ steps.credentials.outputs.secret_access_key }}
+          aws-region: eu-central-1
+
+      - name: Plan
+        env:
+          WORKSPACE: quickpay-${{ steps.credentials.outputs.name }}
+        id: plan
+        run: |
+          cd terraform
+          terraform init -input=false
+          terraform workspace select $WORKSPACE
+          terraform plan -input=false -var-file=$WORKSPACE.tfvars -out=$WORKSPACE.tfplan
+          printf "# ${{ steps.credentials.outputs.name }}\n" > /tmp/plan.txt
+          terraform show $WORKSPACE.tfplan -no-color | grep -v "^::" | grep -v "^\[command\]" >> /tmp/plan.txt
+          mv $WORKSPACE.tfplan /tmp/plan.tfplan
+      
+      - name: Upload Plan
+        env:
+          BRANCH: __plan_branch_${{ steps.credentials.outputs.name }}
+        run: |
+          export COMMIT_SHA=$(git log -n 1 --pretty=format:"%H")  
+          git rev-parse --abbrev-ref HEAD
+          echo $COMMIT_SHA
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout $BRANCH
+          git pull origin $BRANCH
+          mv /tmp/plan.tfplan ./$COMMIT_SHA.tfplan
+          git add $COMMIT_SHA.tfplan
+          git commit -m "upload $COMMIT_SHA.tfplan"
+          git push origin $BRANCH
+
+      - name: Retrieve plan
+        run: |
+          echo "PLAN<<__EOF__" >> $GITHUB_ENV
+          cat /tmp/plan.txt >> $GITHUB_ENV
+          echo "__EOF__" >> $GITHUB_ENV
+      
+      - name: Comment on PR
+        uses: thollander/actions-comment-pull-request@v1
+        with:
+          message: ${{ env.PLAN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

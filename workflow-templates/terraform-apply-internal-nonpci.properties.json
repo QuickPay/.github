@@ -1,0 +1,11 @@
+{
+  "name": "Terraform Apply Internal and NonPCI",
+  "description": "Apply Terraform infrastructure for internal accounts and NonPCI accounts",
+  "categories": [
+    "HCL"
+  ],
+  "filePatterns": [
+    "terraform/*.tf",
+    "terraform/*.hcl"
+  ]
+}

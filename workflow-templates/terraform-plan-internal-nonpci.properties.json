@@ -1,0 +1,11 @@
+{
+  "name": "Terraform Plan Internal and NonPCI",
+  "description": "Plan Terraform infrastructure for internal accounts and NonPCI accounts",
+  "categories": [
+    "HCL"
+  ],
+  "filePatterns": [
+    "terraform/*.tf",
+    "terraform/*.hcl"
+  ]
+}

@@ -1,0 +1,169 @@
+name: Apply
+
+on: 
+  issue_comment:
+    types: [created]
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request }} && (${{ github.event.comment.body }} == '@apply stag' || ${{ github.event.comment.body }} == '@apply prod')
+    strategy:
+      matrix:
+        name:
+          - internal-stag
+          - internal-prod
+          - nonpci-stag
+          - nonpci-prod
+    environment: protected
+    steps:
+      - name: Extract PR number
+        id: pr
+        run: |
+          PR_URL="${{ github.event.issue.pull_request.url }}"
+          PR_NUM=${PR_URL##*/}
+          echo "##[set-output name=number;]$(echo $PR_NUM)"
+        
+
+      - name: Fail if Unapproved
+        uses: actions/github-script@v3
+        with:
+          script: |
+            const pr_num = parseInt("${{ steps.pr.outputs.number }}")
+            const query = `
+            query($owner:String!, $name:String!, $pr_num:Int!) {
+              repository(name: $name, owner: $owner) {
+                pullRequest(number: $pr_num) {
+                  reviewDecision
+                }
+              }
+            }
+            `
+            const result = await github.graphql(query, {
+              pr_num,
+              owner: context.repo.owner,
+              name: context.repo.repo,
+            })
+            const review = result.repository.pullRequest.reviewDecision
+            if (review !== "APPROVED") {
+              core.setFailed('Pull request wasnt approved')
+            }
+
+      - name: Extract is_run
+        id: is_run
+        run: |
+          if [[ "${{ github.event.comment.body }}" = *"stag" ]]; then
+            if [[ "${{ matrix.name }}" = *"stag" ]]; then
+              echo "##[set-output name=is_run;]$(echo "stag")"
+            fi
+          elif [[ "${{ github.event.comment.body }}" = *"prod" ]]; then
+            echo "##[set-output name=is_run;]$(echo "prod")"
+          fi
+
+      - name: Extract credentials
+        if: steps.is_run.outputs.is_run
+        id: credentials
+        env:
+          NAME: ${{ matrix.name }}
+        run: |
+          declare -A access_key_ids=(
+            ["internal-stag"]="${{ secrets.STAG_INTERNAL_AWS_ACCESS_KEY_ID }}"
+            ["internal-prod"]="${{ secrets.PROD_INTERNAL_AWS_ACCESS_KEY_ID }}"
+            ["nonpci-stag"]="${{ secrets.STAG_NONPCI_AWS_ACCESS_KEY_ID }}"
+            ["nonpci-prod"]="${{ secrets.PROD_NONPCI_AWS_ACCESS_KEY_ID }}"
+          )
+          declare -A secret_access_keys=(
+            ["internal-stag"]="${{ secrets.STAG_INTERNAL_AWS_SECRET_ACCESS_KEY }}"
+            ["internal-prod"]="${{ secrets.PROD_INTERNAL_AWS_SECRET_ACCESS_KEY }}"
+            ["nonpci-stag"]="${{ secrets.STAG_NONPCI_AWS_SECRET_ACCESS_KEY }}"
+            ["nonpci-prod"]="${{ secrets.PROD_NONPCI_AWS_SECRET_ACCESS_KEY }}"
+          )
+          echo "##[set-output name=name;]$(echo $NAME)"
+          echo "##[set-output name=access_key_id;]$(echo "${access_key_ids[$NAME]}")"
+          echo "##[set-output name=secret_access_key;]$(echo "${secret_access_keys[$NAME]}")"
+
+      - uses: aws-actions/configure-aws-credentials@v1
+        if: steps.is_run.outputs.is_run
+        with:
+          aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
+          aws-secret-access-key: ${{ steps.credentials.outputs.secret_access_key }}
+          aws-region: eu-central-1
+
+      - name: resolve pr refs
+        if: steps.is_run.outputs.is_run
+        id: refs
+        uses: eficode/resolve-pr-refs@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: actions/checkout@v2
+        if: steps.is_run.outputs.is_run
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.refs.outputs.head_ref }}
+
+      - name: Find plan
+        if: steps.is_run.outputs.is_run
+        env:
+          PLAN_BRANCH: __plan_branch_${{ steps.credentials.outputs.name }}
+        run: |
+          export PR_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          export COMMIT_SHA=$(git log -n 1 --pretty=format:"%H")  
+          echo $PR_BRANCH
+          echo $COMMIT_SHA
+          git checkout $PLAN_BRANCH
+          git pull origin $PLAN_BRANCH
+          mv ./$COMMIT_SHA.tfplan /tmp/plan.tfplan
+          git checkout $PR_BRANCH
+          mv /tmp/plan.tfplan ./terraform/plan.tfplan
+      
+      - name: Apply plan
+        if: steps.is_run.outputs.is_run
+        run: |
+          cd terraform
+          terraform init -input=false
+          terraform workspace select quickpay-${{ matrix.name }}
+          printf "# ${{ steps.credentials.outputs.name }}\n" > /tmp/apply.txt
+          terraform apply -input=false plan.tfplan -no-color &>> /tmp/apply.txt
+
+      - name: Retrieve apply
+        run: |
+          echo "APPLY<<__EOF__" >> $GITHUB_ENV
+          cat /tmp/apply.txt >> $GITHUB_ENV
+          echo "__EOF__" >> $GITHUB_ENV
+
+      - name: 'Comment PR'
+        uses: actions/github-script@v3
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr_num = parseInt("${{ steps.pr.outputs.number }}")
+            const { repo: { owner, repo }  } = context;
+            github.issues.createComment({ issue_number: pr_num, owner, repo, body: `${{ env.APPLY }}` });
+
+  merge:
+    runs-on: ubuntu-latest
+    needs: [apply]
+    steps:
+      - name: Extract is_run
+        id: is_run
+        run: |
+          if [[ "${{ github.event.comment.body }}" = *"prod" ]]; then
+            echo "##[set-output name=is_run;]$(echo "prod")"
+          fi
+          
+      - name: Extract PR number
+        if: steps.is_run.outputs.is_run == 'prod'
+        id: pr
+        run: |
+          PR_URL="${{ github.event.issue.pull_request.url }}"
+          PR_NUM=${PR_URL##*/}
+          echo "##[set-output name=number;]$(echo $PR_NUM)"
+
+      - name: Merge PR
+        if: steps.is_run.outputs.is_run == 'prod'
+        uses: juliangruber/merge-pull-request-action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          number: ${{ steps.pr.outputs.number }}
