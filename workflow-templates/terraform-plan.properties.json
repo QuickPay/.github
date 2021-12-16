@@ -1,6 +1,6 @@
 {
-  "name": "Terraform Plan Internal and NonPCI",
-  "description": "Plan Terraform infrastructure for internal accounts and NonPCI accounts",
+  "name": "Terraform Plan",
+  "description": "Plan Terraform infrastructure",
   "categories": [
     "HCL"
   ],
