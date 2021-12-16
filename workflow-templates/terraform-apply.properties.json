@@ -1,0 +1,11 @@
+{
+  "name": "Terraform Apply",
+  "description": "Apply Terraform infrastructure",
+  "categories": [
+    "HCL"
+  ],
+  "filePatterns": [
+    "terraform/*.tf",
+    "terraform/*.hcl"
+  ]
+}

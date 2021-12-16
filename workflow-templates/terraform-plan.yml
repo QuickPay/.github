@@ -27,6 +27,8 @@ jobs:
           cd terraform
           terraform init -input=false
           terraform validate
+          terraform workspace new quickpay-pci-stag || true
+          terraform workspace new quickpay-pci-prod || true
           terraform workspace new quickpay-nonpci-stag || true
           terraform workspace new quickpay-nonpci-prod || true
           terraform workspace new quickpay-internal-stag || true
@@ -79,6 +81,8 @@ jobs:
           - internal-prod
           - nonpci-stag
           - nonpci-prod
+          - pci-stag
+          - pci-prod
     steps:
       - uses: quickPay/quickpay-base-action@release
         with:
@@ -103,12 +107,16 @@ jobs:
             ["internal-prod"]="${{ secrets.READ_ONLY_PROD_INTERNAL_AWS_ACCESS_KEY_ID }}"
             ["nonpci-stag"]="${{ secrets.READ_ONLY_STAG_NONPCI_AWS_ACCESS_KEY_ID }}"
             ["nonpci-prod"]="${{ secrets.READ_ONLY_PROD_NONPCI_AWS_ACCESS_KEY_ID }}"
+            ["pci-stag"]="${{ secrets.READ_ONLY_STAG_PCI_AWS_ACCESS_KEY_ID }}"
+            ["pci-prod"]="${{ secrets.READ_ONLY_PROD_PCI_AWS_ACCESS_KEY_ID }}"
           )
           declare -A secret_access_keys=(
             ["internal-stag"]="${{ secrets.READ_ONLY_STAG_INTERNAL_AWS_SECRET_ACCESS_KEY }}"
             ["internal-prod"]="${{ secrets.READ_ONLY_PROD_INTERNAL_AWS_SECRET_ACCESS_KEY }}"
             ["nonpci-stag"]="${{ secrets.READ_ONLY_STAG_NONPCI_AWS_SECRET_ACCESS_KEY }}"
             ["nonpci-prod"]="${{ secrets.READ_ONLY_PROD_NONPCI_AWS_SECRET_ACCESS_KEY }}"
+            ["pci-stag"]="${{ secrets.READ_ONLY_STAG_PCI_AWS_SECRET_ACCESS_KEY }}"
+            ["pci-prod"]="${{ secrets.READ_ONLY_PROD_PCI_AWS_SECRET_ACCESS_KEY }}"
           )
           echo "##[set-output name=name;]$(echo $NAME)"
           echo "##[set-output name=access_key_id;]$(echo "${access_key_ids[$NAME]}")"

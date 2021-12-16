@@ -15,6 +15,8 @@ jobs:
           - internal-prod
           - nonpci-stag
           - nonpci-prod
+          - pci-stag
+          - pci-prod
     environment: protected
     steps:
       - name: Extract PR number
@@ -71,12 +73,16 @@ jobs:
             ["internal-prod"]="${{ secrets.PROD_INTERNAL_AWS_ACCESS_KEY_ID }}"
             ["nonpci-stag"]="${{ secrets.STAG_NONPCI_AWS_ACCESS_KEY_ID }}"
             ["nonpci-prod"]="${{ secrets.PROD_NONPCI_AWS_ACCESS_KEY_ID }}"
+            ["pci-stag"]="${{ secrets.STAG_PCI_AWS_ACCESS_KEY_ID }}"
+            ["pci-prod"]="${{ secrets.PROD_PCI_AWS_ACCESS_KEY_ID }}"
           )
           declare -A secret_access_keys=(
             ["internal-stag"]="${{ secrets.STAG_INTERNAL_AWS_SECRET_ACCESS_KEY }}"
             ["internal-prod"]="${{ secrets.PROD_INTERNAL_AWS_SECRET_ACCESS_KEY }}"
             ["nonpci-stag"]="${{ secrets.STAG_NONPCI_AWS_SECRET_ACCESS_KEY }}"
             ["nonpci-prod"]="${{ secrets.PROD_NONPCI_AWS_SECRET_ACCESS_KEY }}"
+            ["pci-stag"]="${{ secrets.STAG_PCI_AWS_SECRET_ACCESS_KEY }}"
+            ["pci-prod"]="${{ secrets.PROD_PCI_AWS_SECRET_ACCESS_KEY }}"
           )
           echo "##[set-output name=name;]$(echo $NAME)"
           echo "##[set-output name=access_key_id;]$(echo "${access_key_ids[$NAME]}")"
