@@ -1,0 +1,108 @@
+name: Apply Registry
+
+on: 
+  issue_comment:
+    types: [created]
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request }} && ${{ github.event.comment.body }} == '@apply registry'
+    environment: protected
+
+    steps:
+      - name: Extract PR number
+        id: pr
+        run: |
+          PR_URL="${{ github.event.issue.pull_request.url }}"
+          PR_NUM=${PR_URL##*/}
+          echo "##[set-output name=number;]$(echo $PR_NUM)"
+        
+
+      - name: Fail if Unapproved
+        uses: actions/github-script@v3
+        with:
+          script: |
+            const pr_num = parseInt("${{ steps.pr.outputs.number }}")
+            const query = `
+            query($owner:String!, $name:String!, $pr_num:Int!) {
+              repository(name: $name, owner: $owner) {
+                pullRequest(number: $pr_num) {
+                  reviewDecision
+                }
+              }
+            }
+            `
+            const result = await github.graphql(query, {
+              pr_num,
+              owner: context.repo.owner,
+              name: context.repo.repo,
+            })
+            const review = result.repository.pullRequest.reviewDecision
+            if (review !== "APPROVED") {
+              core.setFailed('Pull request wasnt approved')
+            }
+
+      - name: Extract credentials
+        id: credentials
+        run: |
+          echo "##[set-output name=name;]$(echo "registry")"
+          echo "##[set-output name=access_key_id;]$(echo "${{ secrets.REGISTRY_AWS_ACCESS_KEY_ID }}")"
+          echo "##[set-output name=secret_access_key;]$(echo "${{ secrets.REGISTRY_AWS_SECRET_ACCESS_KEY }}")"
+
+      - uses: aws-actions/configure-aws-credentials@v1
+        if: steps.is_run.outputs.is_run
+        with:
+          aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
+          aws-secret-access-key: ${{ steps.credentials.outputs.secret_access_key }}
+          aws-region: eu-central-1
+
+      - name: resolve pr refs
+        id: refs
+        uses: eficode/resolve-pr-refs@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.refs.outputs.head_ref }}
+
+      - name: Find plan
+        env:
+          PLAN_BRANCH: __plan_branch_${{ steps.credentials.outputs.name }}
+        run: |
+          export PR_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          export COMMIT_SHA=$(git log -n 1 --pretty=format:"%H")  
+          echo $PR_BRANCH
+          echo $COMMIT_SHA
+          git checkout $PLAN_BRANCH
+          git pull origin $PLAN_BRANCH
+          mv ./$COMMIT_SHA.tfplan /tmp/plan.tfplan
+          git checkout $PR_BRANCH
+          mv /tmp/plan.tfplan ./terraform/registry/plan.tfplan
+      
+      - name: Apply plan
+        run: |
+          cd terraform/registry
+          terraform init -input=false
+          terraform workspace select quickpay-${{ steps.credentials.outputs.name }}
+          printf "# ${{ steps.credentials.outputs.name }}\n" > /tmp/apply.txt
+          echo "```" >> /tmp/apply.txt
+          terraform apply -input=false plan.tfplan -no-color &>> /tmp/apply.txt
+          echo "```" >> /tmp/apply.txt
+
+      - name: Retrieve apply
+        run: |
+          echo "APPLY<<__EOF__" >> $GITHUB_ENV
+          cat /tmp/apply.txt >> $GITHUB_ENV
+          echo "__EOF__" >> $GITHUB_ENV
+
+      - name: 'Comment PR'
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr_num = parseInt("${{ steps.pr.outputs.number }}")
+            const { repo: { owner, repo }  } = context;
+            github.issues.createComment({ issue_number: pr_num, owner, repo, body: `${{ env.APPLY }}` });

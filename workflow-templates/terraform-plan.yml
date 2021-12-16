@@ -27,6 +27,7 @@ jobs:
           cd terraform
           terraform init -input=false
           terraform validate
+          terraform workspace new quickpay-registry || true
           terraform workspace new quickpay-pci-stag || true
           terraform workspace new quickpay-pci-prod || true
           terraform workspace new quickpay-nonpci-stag || true
@@ -77,6 +78,7 @@ jobs:
     strategy:
       matrix:
         name:
+          - registry
           - internal-stag
           - internal-prod
           - nonpci-stag
@@ -87,22 +89,34 @@ jobs:
       - uses: quickPay/quickpay-base-action@release
         with:
           ssh_key: ${{ secrets.SSH_KEY_GITHUB }}
+      
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            terraform:
+              - 'terraform/**'
+              - 'terraform_registry/**'
 
       - uses: hashicorp/setup-terraform@v1
+        if: steps.changes.outputs.terraform == 'true'
         with:
           terraform_version: 1.1.0
 
       - uses: actions/checkout@v2
+        if: steps.changes.outputs.terraform == 'true'
         with:
           fetch-depth: 0
           ref: ${{ github.head_ref }}
 
       - name: Extract credentials
+        if: steps.changes.outputs.terraform == 'true'
         id: credentials
         env:
           NAME: ${{ matrix.name }}
         run: |
           declare -A access_key_ids=(
+            ["registry"]="${{ secrets.READ_ONLY_REGISTRY_AWS_ACCESS_KEY_ID }}"
             ["internal-stag"]="${{ secrets.READ_ONLY_STAG_INTERNAL_AWS_ACCESS_KEY_ID }}"
             ["internal-prod"]="${{ secrets.READ_ONLY_PROD_INTERNAL_AWS_ACCESS_KEY_ID }}"
             ["nonpci-stag"]="${{ secrets.READ_ONLY_STAG_NONPCI_AWS_ACCESS_KEY_ID }}"
@@ -111,6 +125,7 @@ jobs:
             ["pci-prod"]="${{ secrets.READ_ONLY_PROD_PCI_AWS_ACCESS_KEY_ID }}"
           )
           declare -A secret_access_keys=(
+            ["registry"]="${{ secrets.READ_ONLY_REGISTRY_AWS_SECRET_ACCESS_KEY }}"
             ["internal-stag"]="${{ secrets.READ_ONLY_STAG_INTERNAL_AWS_SECRET_ACCESS_KEY }}"
             ["internal-prod"]="${{ secrets.READ_ONLY_PROD_INTERNAL_AWS_SECRET_ACCESS_KEY }}"
             ["nonpci-stag"]="${{ secrets.READ_ONLY_STAG_NONPCI_AWS_SECRET_ACCESS_KEY }}"
@@ -123,12 +138,14 @@ jobs:
           echo "##[set-output name=secret_access_key;]$(echo "${secret_access_keys[$NAME]}")"
 
       - uses: aws-actions/configure-aws-credentials@v1
+        if: steps.changes.outputs.terraform == 'true'
         with:
           aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
           aws-secret-access-key: ${{ steps.credentials.outputs.secret_access_key }}
           aws-region: eu-central-1
 
       - name: Plan
+        if: steps.changes.outputs.terraform == 'true'
         env:
           WORKSPACE: quickpay-${{ steps.credentials.outputs.name }}
         id: plan
@@ -138,10 +155,13 @@ jobs:
           terraform workspace select $WORKSPACE
           terraform plan -input=false -var-file=$WORKSPACE.tfvars -out=$WORKSPACE.tfplan
           printf "# ${{ steps.credentials.outputs.name }}\n" > /tmp/plan.txt
+          echo "```" >> /tmp/plan.txt
           terraform show $WORKSPACE.tfplan -no-color | grep -v "^::" | grep -v "^\[command\]" >> /tmp/plan.txt
+          echo "```" >> /tmp/plan.txt
           mv $WORKSPACE.tfplan /tmp/plan.tfplan
       
       - name: Upload Plan
+        if: steps.changes.outputs.terraform == 'true'
         env:
           BRANCH: __plan_branch_${{ steps.credentials.outputs.name }}
         run: |
@@ -158,12 +178,14 @@ jobs:
           git push origin $BRANCH
 
       - name: Retrieve plan
+        if: steps.changes.outputs.terraform == 'true'
         run: |
           echo "PLAN<<__EOF__" >> $GITHUB_ENV
           cat /tmp/plan.txt >> $GITHUB_ENV
           echo "__EOF__" >> $GITHUB_ENV
       
       - name: Comment on PR
+        if: steps.changes.outputs.terraform == 'true'
         uses: thollander/actions-comment-pull-request@v1
         with:
           message: ${{ env.PLAN }}
