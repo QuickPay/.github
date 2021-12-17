@@ -97,7 +97,6 @@ jobs:
           filters: |
             terraform:
               - 'terraform/**'
-              - 'terraform_registry/**'
 
       - uses: hashicorp/setup-terraform@v1
         if: steps.changes.outputs.terraform == 'true'
