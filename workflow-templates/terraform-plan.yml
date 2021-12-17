@@ -154,12 +154,13 @@ jobs:
           terraform init -input=false
           terraform workspace select $WORKSPACE
           terraform plan -input=false -var-file=$WORKSPACE.tfvars -out=$WORKSPACE.tfplan
-          printf "# ${{ steps.credentials.outputs.name }}\n" > /tmp/plan.txt
-          echo "```" >> /tmp/plan.txt
+          printf "# ${{ steps.credentials.outputs.name }}" > /tmp/plan.txt
+          echo $'\n' >> /tmp/plan.txt
+          echo '```' >> /tmp/plan.txt
           terraform show $WORKSPACE.tfplan -no-color | grep -v "^::" | grep -v "^\[command\]" >> /tmp/plan.txt
-          echo "```" >> /tmp/plan.txt
+          echo '```' >> /tmp/plan.txt
           mv $WORKSPACE.tfplan /tmp/plan.tfplan
-      
+          
       - name: Upload Plan
         if: steps.changes.outputs.terraform == 'true'
         env:
