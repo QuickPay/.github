@@ -130,10 +130,11 @@ jobs:
           cd terraform
           terraform init -input=false
           terraform workspace select quickpay-${{ matrix.name }}
-          printf "# ${{ steps.credentials.outputs.name }}\n" > /tmp/apply.txt
-          echo "```" >> /tmp/apply.txt
+          printf "# ${{ steps.credentials.outputs.name }}" > /tmp/apply.txt
+          echo $'\n' >> /tmp/plan.txt
+          echo '```' >> /tmp/apply.txt
           terraform apply -input=false plan.tfplan -no-color &>> /tmp/apply.txt
-          echo "```" >> /tmp/apply.txt
+          echo '```' >> /tmp/apply.txt
 
       - name: Retrieve apply
         if: steps.is_run.outputs.is_run
