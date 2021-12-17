@@ -136,6 +136,7 @@ jobs:
           echo "```" >> /tmp/apply.txt
 
       - name: Retrieve apply
+        if: steps.is_run.outputs.is_run
         run: |
           echo "APPLY<<__EOF__" >> $GITHUB_ENV
           cat /tmp/apply.txt >> $GITHUB_ENV
