@@ -133,7 +133,7 @@ jobs:
           printf "# ${{ steps.credentials.outputs.name }}" > /tmp/apply.txt
           echo $'\n' >> /tmp/plan.txt
           echo '```' >> /tmp/apply.txt
-          terraform apply -input=false plan.tfplan -no-color &>> /tmp/apply.txt
+          terraform apply -input=false plan.tfplan -no-color 2>&1 | tee -a /tmp/apply.txt
           echo '```' >> /tmp/apply.txt
 
       - name: Retrieve apply
@@ -144,13 +144,14 @@ jobs:
           echo "__EOF__" >> $GITHUB_ENV
 
       - name: 'Comment PR'
+        if: steps.is_run.outputs.is_run
         uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr_num = parseInt("${{ steps.pr.outputs.number }}")
             const { repo: { owner, repo }  } = context;
-            github.issues.createComment({ issue_number: pr_num, owner, repo, body: `${{ env.APPLY }}` });
+            github.issues.createComment({ issue_number: pr_num, owner, repo, body: process.env.APPLY });
 
   merge:
     runs-on: ubuntu-latest
