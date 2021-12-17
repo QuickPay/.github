@@ -76,6 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [init-validate, fmt, tflint]
     strategy:
+      fail-fast: false
       matrix:
         name:
           - registry
