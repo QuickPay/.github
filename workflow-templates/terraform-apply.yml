@@ -109,6 +109,10 @@ jobs:
           fetch-depth: 0
           ref: ${{ steps.refs.outputs.head_ref }}
 
+      - uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.1.0
+          
       - name: Find plan
         if: steps.is_run.outputs.is_run
         env:
@@ -131,7 +135,7 @@ jobs:
           terraform init -input=false
           terraform workspace select quickpay-${{ matrix.name }}
           printf "# ${{ steps.credentials.outputs.name }}" > /tmp/apply.txt
-          echo $'\n' >> /tmp/plan.txt
+          echo $'\n' >> /tmp/apply.txt
           echo '```' >> /tmp/apply.txt
           terraform apply -input=false plan.tfplan -no-color 2>&1 | tee -a /tmp/apply.txt
           echo '```' >> /tmp/apply.txt
