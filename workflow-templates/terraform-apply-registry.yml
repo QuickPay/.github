@@ -51,7 +51,6 @@ jobs:
           echo "##[set-output name=secret_access_key;]$(echo "${{ secrets.REGISTRY_AWS_SECRET_ACCESS_KEY }}")"
 
       - uses: aws-actions/configure-aws-credentials@v1
-        if: steps.is_run.outputs.is_run
         with:
           aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
           aws-secret-access-key: ${{ steps.credentials.outputs.secret_access_key }}
