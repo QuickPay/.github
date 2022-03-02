@@ -5,11 +5,20 @@ on:
     types: [created]
 
 jobs:
+  check_pr:
+    runs-on: ubuntu-latest
+    if: github.event.issue.pull_request
+    steps: 
+      - run: echo "true"
+  check_apply:
+    runs-on: ubuntu-latest
+    if: github.event.comment.body == '@apply registry'
+    steps: 
+      - run: echo "true"
   apply:
     runs-on: ubuntu-latest
-    if: ${{ github.event.issue.pull_request }} && ${{ github.event.comment.body }} == '@apply registry'
+    needs: [check_pr, check_apply]
     environment: protected
-
     steps:
       - name: Extract PR number
         id: pr
