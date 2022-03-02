@@ -5,9 +5,19 @@ on:
     types: [created]
 
 jobs:
+  check_pr:
+    runs-on: ubuntu-latest
+    if: github.event.issue.pull_request
+    steps: 
+      - run: echo "true"
+  check_apply:
+    runs-on: ubuntu-latest
+    if: github.event.comment.body == '@apply stag' || github.event.comment.body == '@apply prod'
+    steps: 
+      - run: echo "true"
   apply:
     runs-on: ubuntu-latest
-    if: ${{ github.event.issue.pull_request }} && (${{ github.event.comment.body }} == '@apply stag' || ${{ github.event.comment.body }} == '@apply prod')
+    needs: [check_pr, check_apply]
     strategy:
       fail-fast: false
       matrix:
