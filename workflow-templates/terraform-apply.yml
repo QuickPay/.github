@@ -28,7 +28,7 @@ jobs:
           - nonpci-prod
           - pci-stag
           - pci-prod
-    environment: protected
+    environment: terraform
     steps:
       - name: Extract PR number
         id: pr
@@ -142,6 +142,12 @@ jobs:
         if: steps.is_run.outputs.is_run
         run: |
           cd terraform
+
+          if [[ -d main ]]; then
+            mv plan.tfplan main/plan.tfplan
+            cd main
+          fi
+
           terraform init -input=false
           terraform workspace select quickpay-${{ matrix.name }}
           printf "# ${{ steps.credentials.outputs.name }}" > /tmp/apply.txt
