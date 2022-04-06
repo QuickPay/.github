@@ -67,9 +67,27 @@ jobs:
       - uses: actions/checkout@v2
 
       - run: |
-          cd terraform
-          tflint --init
-          tflint --config ./.tflint.hcl
+          if [[ -d registry ]]; then
+            echo "Linting Registry"
+            cd registry
+            tflint --init
+            tflint --config ./.tflint.hcl
+            cd ..
+          fi
+
+          if [[ -d main ]]; then
+            echo "Linting Main"
+            cd main
+            tflint --init
+            tflint --config ./.tflint.hcl
+            cd ..
+          fi
+
+          if [[ -f settings.tf ]]; then
+            echo "Linting Terraform"
+            tflint --init
+            tflint --config ./.tflint.hcl
+          fi
 
   plan:
     name: plan
@@ -151,6 +169,15 @@ jobs:
         id: plan
         run: |
           cd terraform
+
+          if [[ -d registry && "$WORKSPACE" == quickpay-registry ]]; then
+            cd registry
+            echo "Plan Registry"
+          elif [[ -d main ]]; then
+            echo "Plan Main"
+            cd main
+          fi
+
           terraform init -input=false
           terraform workspace select $WORKSPACE
           terraform plan -input=false -var-file=$WORKSPACE.tfvars -out=$WORKSPACE.tfplan
