@@ -25,9 +25,24 @@ jobs:
 
       - run: |
           cd terraform
+
+          if [[ -d registry ]]; then
+            cd registry
+            echo "Initializig Registry"
+            terraform init -input=false
+            terraform validate
+            terraform workspace new quickpay-registry || true
+            cd ..
+          fi
+
+          if [[ -d main ]]; then
+            cd main
+            echo "Initializig Main"
+            cd ..
+          fi
+
           terraform init -input=false
           terraform validate
-          terraform workspace new quickpay-registry || true
           terraform workspace new quickpay-pci-stag || true
           terraform workspace new quickpay-pci-prod || true
           terraform workspace new quickpay-nonpci-stag || true
