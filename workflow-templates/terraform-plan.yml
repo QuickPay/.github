@@ -35,10 +35,12 @@ jobs:
             cd ..
           fi
 
-          if [[ -d main ]]; then
+          if [[ -d main ]]
+          then
             cd main
             echo "Initializig Main"
-            cd ..
+          else
+            echo "Initializig Terraform"
           fi
 
           terraform init -input=false
