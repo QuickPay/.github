@@ -18,7 +18,7 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     needs: [check_pr, check_apply]
-    environment: protected
+    environment: terraform
     steps:
       - name: Extract PR number
         id: pr
