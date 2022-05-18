@@ -40,8 +40,12 @@ jobs:
 
       - name: Fail if Unapproved
         uses: actions/github-script@v3
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         with:
           script: |
+            const { COMMENT_BODY } = process.env
+
             const pr_num = parseInt("${{ steps.pr.outputs.number }}")
             const query = `
             query($owner:String!, $name:String!, $pr_num:Int!) {
@@ -58,8 +62,8 @@ jobs:
               name: context.repo.repo,
             })
             const review = result.repository.pullRequest.reviewDecision
-            if (review !== "APPROVED") {
-              core.setFailed('Pull request wasnt approved')
+            if (review !== "APPROVED" && COMMENT_BODY === "@apply prod") {
+              core.setFailed('Pull request must be approved to apply to prod')
             }
 
       - name: Extract is_run
