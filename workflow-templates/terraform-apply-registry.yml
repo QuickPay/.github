@@ -1,4 +1,4 @@
-name: Apply Registry
+name: Terraform Apply Registry
 
 on: 
   issue_comment:
