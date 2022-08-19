@@ -13,7 +13,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.1.0
+          terraform_version: 1.2.7
 
       - uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.1.0
+          terraform_version: 1.2.7
 
       - uses: actions/checkout@v2
 
@@ -74,7 +74,7 @@ jobs:
           
       - uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.1.0
+          terraform_version: 1.2.7
 
       - uses: terraform-linters/setup-tflint@v1
         name: Setup TFLint
@@ -136,7 +136,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         if: steps.changes.outputs.terraform == 'true'
         with:
-          terraform_version: 1.1.0
+          terraform_version: 1.2.7
 
       - uses: actions/checkout@v2
         if: steps.changes.outputs.terraform == 'true'
