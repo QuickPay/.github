@@ -2,10 +2,40 @@ name: Terraform Plan
 
 on:
   pull_request:
+  
+  issue_comment:
+    types: [created]
 
 jobs:
+  check_run:
+    runs-on: ubuntu-latest
+    if: ${{ (github.event_name == 'issue_comment' && github.event.comment.body == '@plan') || github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v2
+      
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            terraform:
+              - 'terraform/**'
+
+      - name: resolve_should_run
+        id: resolve_should_run
+        run: |
+          if [[ '${{ github.event_name}}' == 'pull_request' && '${{steps.changes.outputs.terraform}}' == 'false' ]]; then
+            echo "##[set-output name=should_run;]$(echo "false")" 
+          else
+            echo "##[set-output name=should_run;]$(echo "true")" 
+          fi
+
+    outputs:
+      should_run: ${{ steps.resolve_should_run.outputs.should_run }}
+
   init-validate:
     runs-on: ubuntu-latest
+    needs: [check_run]
+    if: ${{ needs.check_run.outputs.should_run == 'true' }}
     steps:
       - uses: quickPay/quickpay-base-action@release
         with:
@@ -13,13 +43,16 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.2.7
+          terraform_version: 1.3.1
 
       - uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.READ_ONLY_INFRASTRUCTURE_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.READ_ONLY_INFRASTRUCTURE_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
+
+      - run: |
+          echo "GRAFANA_AUTH=${{ secrets.READ_ONLY_GRAFANA_API_KEY }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v2
 
@@ -54,10 +87,12 @@ jobs:
 
   fmt:
     runs-on: ubuntu-latest
+    needs: [check_run]
+    if: ${{ needs.check_run.outputs.should_run == 'true' }}
     steps:
       - uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.2.7
+          terraform_version: 1.3.1
 
       - uses: actions/checkout@v2
 
@@ -67,6 +102,8 @@ jobs:
 
   tflint:
     runs-on: ubuntu-latest
+    needs: [check_run]
+    if: ${{ needs.check_run.outputs.should_run == 'true' }}
     steps:
       - uses: quickPay/quickpay-base-action@release
         with:
@@ -74,7 +111,7 @@ jobs:
           
       - uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 1.2.7
+          terraform_version: 1.3.1
 
       - uses: terraform-linters/setup-tflint@v1
         name: Setup TFLint
@@ -122,30 +159,47 @@ jobs:
           - pci-stag
           - pci-prod
     steps:
+      - name: Extract PR number
+        id: pr
+        run: |
+          if [[ ${{ github.event_name }} == 'issue_comment' ]]; then
+            PR_URL="${{ github.event.issue.pull_request.url }}"
+            PR_NUM=${PR_URL##*/}
+          elif [[ ${{ github.event_name }} == 'pull_request' ]]; then
+            PR_NUM=${{ github.event.number }}
+          fi
+          echo "##[set-output name=number;]$(echo $PR_NUM)"
+
       - uses: quickPay/quickpay-base-action@release
         with:
           ssh_key: ${{ secrets.SSH_KEY_GITHUB }}
       
-      - uses: dorny/paths-filter@v2
-        id: changes
-        with:
-          filters: |
-            terraform:
-              - 'terraform/**'
-
       - uses: hashicorp/setup-terraform@v1
-        if: steps.changes.outputs.terraform == 'true'
         with:
-          terraform_version: 1.2.7
+          terraform_version: 1.3.1
 
-      - uses: actions/checkout@v2
-        if: steps.changes.outputs.terraform == 'true'
+      - name: resolve pr refs (issue_comment)
+        if: ${{ github.event_name == 'issue_comment' }}
+        id: refs
+        uses: eficode/resolve-pr-refs@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: checkout (issue_comment)
+        uses: actions/checkout@v2
+        if: ${{ github.event_name == 'issue_comment' }}
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.refs.outputs.head_ref }}
+
+      - name: checkout (pull_request)
+        uses: actions/checkout@v2
+        if: ${{ github.event_name == 'pull_request' }}
         with:
           fetch-depth: 0
           ref: ${{ github.head_ref }}
 
       - name: Extract credentials
-        if: steps.changes.outputs.terraform == 'true'
         id: credentials
         env:
           NAME: ${{ matrix.name }}
@@ -171,16 +225,15 @@ jobs:
           echo "##[set-output name=name;]$(echo $NAME)"
           echo "##[set-output name=access_key_id;]$(echo "${access_key_ids[$NAME]}")"
           echo "##[set-output name=secret_access_key;]$(echo "${secret_access_keys[$NAME]}")"
+          echo "GRAFANA_AUTH=${{ secrets.READ_ONLY_GRAFANA_API_KEY }}" >> $GITHUB_ENV
 
       - uses: aws-actions/configure-aws-credentials@v1
-        if: steps.changes.outputs.terraform == 'true'
         with:
           aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
           aws-secret-access-key: ${{ steps.credentials.outputs.secret_access_key }}
           aws-region: eu-central-1
 
       - name: Plan
-        if: steps.changes.outputs.terraform == 'true'
         env:
           WORKSPACE: quickpay-${{ steps.credentials.outputs.name }}
         id: plan
@@ -206,7 +259,6 @@ jobs:
           mv $WORKSPACE.tfplan /tmp/plan.tfplan
           
       - name: Upload Plan
-        if: steps.changes.outputs.terraform == 'true'
         env:
           BRANCH: __plan_branch_${{ steps.credentials.outputs.name }}
         run: |
@@ -223,15 +275,16 @@ jobs:
           git push origin $BRANCH
 
       - name: Retrieve plan
-        if: steps.changes.outputs.terraform == 'true'
         run: |
           echo "PLAN<<__EOF__" >> $GITHUB_ENV
           cat /tmp/plan.txt >> $GITHUB_ENV
           echo "__EOF__" >> $GITHUB_ENV
       
-      - name: Comment on PR
-        if: steps.changes.outputs.terraform == 'true'
-        uses: thollander/actions-comment-pull-request@v1
+      - name: 'Comment PR'
+        uses: actions/github-script@v3
         with:
-          message: ${{ env.PLAN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr_num = parseInt("${{ steps.pr.outputs.number }}")
+            const { repo: { owner, repo }  } = context;
+            github.issues.createComment({ issue_number: pr_num, owner, repo, body: process.env.PLAN });
