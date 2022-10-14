@@ -1,0 +1,6 @@
+{
+  "name": "ECS Deploy",
+  "description": "Deploy and ECS service",
+  "categories": ["HCL", "Dockerfile"],
+  "filePatterns": ["terraform/*.tf", "terraform/*.hcl", "Dockerfile"]
+}
