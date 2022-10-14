@@ -1,6 +1,6 @@
 name: Terraform Apply Registry
 
-on: 
+on:
   issue_comment:
     types: [created]
 
@@ -8,12 +8,12 @@ jobs:
   check_pr:
     runs-on: ubuntu-latest
     if: github.event.issue.pull_request
-    steps: 
+    steps:
       - run: echo "true"
   check_apply:
     runs-on: ubuntu-latest
     if: github.event.comment.body == '@apply registry'
-    steps: 
+    steps:
       - run: echo "true"
   apply:
     runs-on: ubuntu-latest
@@ -25,8 +25,7 @@ jobs:
         run: |
           PR_URL="${{ github.event.issue.pull_request.url }}"
           PR_NUM=${PR_URL##*/}
-          echo "##[set-output name=number;]$(echo $PR_NUM)"
-        
+          echo "number=$PR_NUM" >> $GITHUB_OUTPUT
 
       - name: Fail if Unapproved
         uses: actions/github-script@v3
@@ -55,11 +54,11 @@ jobs:
       - name: Extract credentials
         id: credentials
         run: |
-          echo "##[set-output name=name;]$(echo "registry")"
-          echo "##[set-output name=access_key_id;]$(echo "${{ secrets.REGISTRY_AWS_ACCESS_KEY_ID }}")"
-          echo "##[set-output name=secret_access_key;]$(echo "${{ secrets.REGISTRY_AWS_SECRET_ACCESS_KEY }}")"
+          echo "name=registry" >> $GITHUB_OUTPUT
+          echo "access_key_id=${{ secrets.REGISTRY_AWS_ACCESS_KEY_ID }}" >> $GITHUB_OUTPUT
+          echo "secret_access_key=${{ secrets.REGISTRY_AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
 
-      - uses: aws-actions/configure-aws-credentials@v1
+      - uses: aws-actions/configure-aws-credentials@v1.7.0
         with:
           aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
           aws-secret-access-key: ${{ steps.credentials.outputs.secret_access_key }}
@@ -70,7 +69,7 @@ jobs:
         uses: eficode/resolve-pr-refs@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -79,7 +78,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 1.2.7
-          
+
       - name: Find plan
         env:
           PLAN_BRANCH: __plan_branch_${{ steps.credentials.outputs.name }}
@@ -93,7 +92,7 @@ jobs:
           mv ./$COMMIT_SHA.tfplan /tmp/plan.tfplan
           git checkout $PR_BRANCH
           mv /tmp/plan.tfplan ./terraform/registry/plan.tfplan
-      
+
       - name: Apply plan
         run: |
           cd terraform/registry
@@ -111,7 +110,7 @@ jobs:
           cat /tmp/apply.txt >> $GITHUB_ENV
           echo "__EOF__" >> $GITHUB_ENV
 
-      - name: 'Comment PR'
+      - name: "Comment PR"
         uses: actions/github-script@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
