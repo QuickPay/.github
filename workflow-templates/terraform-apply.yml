@@ -102,6 +102,7 @@ jobs:
           echo "access_key_id=${access_key_ids[$NAME]}" >> $GITHUB_OUTPUT
           echo "secret_access_key=${secret_access_keys[$NAME]}" >> $GITHUB_OUTPUT
           echo "GRAFANA_AUTH=${{ secrets.GRAFANA_API_KEY }}" >> $GITHUB_ENV
+          echo "HUMIO_API_TOKEN=${{ secrets.HUMIO_API_TOKEN }}" >> $GITHUB_ENV
 
       - uses: aws-actions/configure-aws-credentials@v1.7.0
         if: steps.is_run.outputs.is_run
