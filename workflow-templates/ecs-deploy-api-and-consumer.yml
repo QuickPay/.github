@@ -1,0 +1,159 @@
+name: ECS Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: environment
+      image_tag:
+        description: "Image tag to deploy"
+        required: true
+      task_definition_revision_api:
+        description: "Optional: Task Definition Revision, to base deployment off of"
+        required: false
+        default: "latest"
+      task_definition_revision_consumer:
+        description: "Optional: Task Definition Revision, to base deployment off of"
+        required: false
+        default: "latest"
+
+jobs:
+  find_constants:
+    name: "Find Constants for Deploy ${{ github.event.inputs.environment }}"
+    runs-on: ubuntu-latest
+    outputs:
+      name_prefix: ${{ steps.constants.outputs.name_prefix }}
+      ecs_cluster_name: ${{ steps.constants.outputs.ecs_cluster_name }}
+      ecr_repository_name: ${{ steps.constants.outputs.ecr_repository_name }}
+      ecr_repository_url: ${{ steps.constants.outputs.ecr_repository_url }}
+      application_name: ${{ steps.constants.outputs.application_name }}
+    steps:
+      - name: Resolve Constants
+        id: constants
+        run: |
+          if [[ "${{ github.event.inputs.environment }}" = "staging" ]]; then
+            ENVIRONMENT_PREFIX="stag"
+          elif [[ "${{ github.event.inputs.environment }}" = "production" ]]; then
+            ENVIRONMENT_PREFIX="prod"
+          else
+            echo "Unexpected environment chosen for deployment. Exiting Unsuccessfully"
+            exit 1
+          fi
+
+          echo "Environment: $ENVIRONMENT_PREFIX"
+
+          ACCOUNT_ENVIRONMENT="pci"
+
+          APPLICATION_NAME="${{ github.event.repository.name }}"
+          NAME_PREFIX="$ENVIRONMENT_PREFIX-$ACCOUNT_ENVIRONMENT" 
+          ECR_REPOSITORY_NAME="$APPLICATION_NAME"
+          ECS_CLUSTER_NAME="$NAME_PREFIX-backend"
+          ECR_REPOSITORY_URL="312890589679.dkr.ecr.eu-central-1.amazonaws.com/$ECR_REPOSITORY_NAME"
+
+          echo "application_name=$APPLICATION_NAME" >> $GITHUB_OUTPUT
+          echo "name_prefix=$NAME_PREFIX" >> $GITHUB_OUTPUT
+          echo "ecs_cluster_name=$ECS_CLUSTER_NAME" >> $GITHUB_OUTPUT
+          echo "ecr_repository_name=$ECR_REPOSITORY_NAME" >> $GITHUB_OUTPUT
+          echo "ecr_repository_url=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
+  check_valid_input:
+    name: "Check Valid Input for Deploy ${{ github.event.inputs.environment }}"
+    runs-on: ubuntu-latest
+    needs: [find_constants]
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          aws-access-key-id: ${{ secrets.PUSH_ECR_REGISTRY_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.PUSH_ECR_REGISTRY_AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Check if image tag is valid
+        run: |
+          RESULT=$(aws ecr list-images \
+            --repository-name=${{ needs.find_constants.outputs.ecr_repository_name }} \
+            --query="imageIds[?imageTag == '${{ github.event.inputs.image_tag }}']")
+          if [[ "$RESULT" == *"[]"* ]]; then
+            echo "invalid image tag"
+            exit 1
+          fi
+  deploy:
+    name: "Deploy ${{ github.event.inputs.environment }} ${{ matrix.container_name }}"
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    needs: [check_valid_input, find_constants]
+    strategy:
+      fail-fast: false
+      matrix:
+        container_name:
+          - ${{ github.event.repository.name }}-api
+          - ${{ github.event.repository.name }}-consumer
+    steps:
+      - name: Resolve Matrix Constants
+        id: constants
+        run: |
+          TASK_DEFINITION_NAME="${{ needs.find_constants.outputs.name_prefix }}-${{ matrix.container_name }}"
+          TASK_DEFINITION_CONTAINER_NAME="$TASK_DEFINITION_NAME"
+          ECS_SERVICE_NAME="$TASK_DEFINITION_NAME"
+
+          echo "task_definition_name=$TASK_DEFINITION_NAME" >> $GITHUB_OUTPUT
+          echo "task_definition_container_name=$TASK_DEFINITION_CONTAINER_NAME" >> $GITHUB_OUTPUT
+          echo "ecs_service_name=$ECS_SERVICE_NAME" >> $GITHUB_OUTPUT
+
+          TASK_DEFINITION_REVISION=""
+          if [[ "${{ matrix.container_name }}" = *"api" ]]; then
+            TASK_DEFINITION_REVISION="${{ github.event.inputs.task_definition_revision_api }}"
+          elif [[ "${{ matrix.container_name }}" = *"consumer" ]]; then
+            TASK_DEFINITION_REVISION="${{ github.event.inputs.task_definition_revision_consumer }}"
+          else
+            echo "No Task Definition Revision Input, configured for matrix ''${{ matrix.name }}''. Exiting Unsuccessfully"
+            exit 1
+          fi
+          if [[ "$TASK_DEFINITION_REVISION" == "latest" ]]; then
+            TASK_DEFINITION_REVISION=""
+          else
+            TASK_DEFINITION_REVISION=":$TASK_DEFINITION_REVISION"
+          fi
+
+          echo "task_definition_revision=$TASK_DEFINITION_REVISION" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          aws-access-key-id: ${{ secrets.DEPLOY_USER_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DEPLOY_USER_AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Download task definition
+        run: |
+
+          TASK_DEFINITION="${{ steps.constants.outputs.task_definition_name }}${{ steps.constants.outputs.task_definition_revision }}"
+          aws ecs describe-task-definition --task-definition "$TASK_DEFINITION" --query taskDefinition > task-definition.json
+
+      - name: Render Amazon ECS task definition
+        id: render-container-task-definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1.1.1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ steps.constants.outputs.task_definition_container_name }}
+          image: ${{ needs.find_constants.outputs.ecr_repository_url }}:${{ github.event.inputs.image_tag }}
+
+      - name: Deploy to Amazon ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1.4.10
+        with:
+          task-definition: ${{ steps.render-container-task-definition.outputs.task-definition }}
+          service: ${{ steps.constants.outputs.ecs_service_name }}
+          cluster: ${{ needs.find_constants.outputs.ecs_cluster_name }}
+          wait-for-service-stability: true
+
+  slacknotification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    needs: [deploy, find_constants]
+    steps:
+      - uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_ICON_EMOJI: "aws"
+          SLACK_USERNAME: Deploy Notification
+          SLACK_TITLE: Message
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_MESSAGE: "*${{ github.event.inputs.environment }}:* ${{ github.actor }} deployed ${{ needs.find_constants.outputs.application_name }} ${{ github.event.inputs.image_tag }}"
+          MSG_MINIMAL: true
