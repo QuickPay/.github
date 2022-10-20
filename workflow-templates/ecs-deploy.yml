@@ -7,7 +7,11 @@ on:
       image_tag:
         description: "Image tag to deploy"
         required: true
-      task_definition_revision:
+      task_definition_revision_api:
+        description: "Optional: Task Definition Revision, to base deployment off of"
+        required: false
+        default: "latest"
+      task_definition_revision_consumer:
         description: "Optional: Task Definition Revision, to base deployment off of"
         required: false
         default: "latest"
@@ -17,9 +21,7 @@ jobs:
     name: "Find Constants for Deploy ${{ github.event.inputs.environment }}"
     runs-on: ubuntu-latest
     outputs:
-      task_definition_name: ${{ steps.constants.outputs.task_definition_name }}
-      task_definition_container_name: ${{ steps.constants.outputs.task_definition_container_name }}
-      ecs_service_name: ${{ steps.constants.outputs.ecs_service_name }}
+      name_prefix: ${{ steps.constants.outputs.name_prefix }}
       ecs_cluster_name: ${{ steps.constants.outputs.ecs_cluster_name }}
       ecr_repository_name: ${{ steps.constants.outputs.ecr_repository_name }}
       ecr_repository_url: ${{ steps.constants.outputs.ecr_repository_url }}
@@ -39,21 +41,16 @@ jobs:
 
           echo "Environment: $ENVIRONMENT_PREFIX"
 
-          #ACCOUNT_ENVIRONMENT="pci"
-          #ACCOUNT_ENVIRONMENT="nonpci"
-          #ACCOUNT_ENVIRONMENT="internal"
+          ACCOUNT_ENVIRONMENT="pci"
 
           APPLICATION_NAME="${{ github.event.repository.name }}"
           NAME_PREFIX="$ENVIRONMENT_PREFIX-$ACCOUNT_ENVIRONMENT" 
-          FULL_NAME="$NAME_PREFIX-$APPLICATION_NAME"
           ECR_REPOSITORY_NAME="$APPLICATION_NAME"
           ECS_CLUSTER_NAME="$NAME_PREFIX-backend"
           ECR_REPOSITORY_URL="312890589679.dkr.ecr.eu-central-1.amazonaws.com/$ECR_REPOSITORY_NAME"
 
           echo "application_name=$APPLICATION_NAME" >> $GITHUB_OUTPUT
-          echo "task_definition_name=$FULL_NAME" >> $GITHUB_OUTPUT
-          echo "task_definition_container_name=$FULL_NAME" >> $GITHUB_OUTPUT
-          echo "ecs_service_name=$FULL_NAME" >> $GITHUB_OUTPUT
+          echo "name_prefix=$NAME_PREFIX" >> $GITHUB_OUTPUT
           echo "ecs_cluster_name=$ECS_CLUSTER_NAME" >> $GITHUB_OUTPUT
           echo "ecr_repository_name=$ECR_REPOSITORY_NAME" >> $GITHUB_OUTPUT
           echo "ecr_repository_url=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
@@ -78,11 +75,45 @@ jobs:
             exit 1
           fi
   deploy:
-    name: "Deploy ${{ github.event.inputs.environment }}"
+    name: "Deploy ${{ github.event.inputs.environment }} ${{ matrix.container_name }}"
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment }}
     needs: [check_valid_input, find_constants]
+    strategy:
+      fail-fast: false
+      matrix:
+        container_name:
+          - ${{ github.event.repository.name }}-api
+          - ${{ github.event.repository.name }}-consumer
     steps:
+      - name: Resolve Matrix Constants
+        id: constants
+        run: |
+          TASK_DEFINITION_NAME="${{ needs.find_constants.outputs.name_prefix }}-${{ matrix.container_name }}"
+          TASK_DEFINITION_CONTAINER_NAME="$TASK_DEFINITION_NAME"
+          ECS_SERVICE_NAME="$TASK_DEFINITION_NAME"
+
+          echo "task_definition_name=$TASK_DEFINITION_NAME" >> $GITHUB_OUTPUT
+          echo "task_definition_container_name=$TASK_DEFINITION_CONTAINER_NAME" >> $GITHUB_OUTPUT
+          echo "ecs_service_name=$ECS_SERVICE_NAME" >> $GITHUB_OUTPUT
+
+          TASK_DEFINITION_REVISION=""
+          if [[ "${{ matrix.container_name }}" = *"api" ]]; then
+            TASK_DEFINITION_REVISION="${{ github.event.inputs.task_definition_revision_api }}"
+          elif [[ "${{ matrix.container_name }}" = *"consumer" ]]; then
+            TASK_DEFINITION_REVISION="${{ github.event.inputs.task_definition_revision_consumer }}"
+          else
+            echo "No Task Definition Revision Input, configured for matrix ''${{ matrix.name }}''. Exiting Unsuccessfully"
+            exit 1
+          fi
+          if [[ "$TASK_DEFINITION_REVISION" == "latest" ]]; then
+            TASK_DEFINITION_REVISION=""
+          else
+            TASK_DEFINITION_REVISION=":$TASK_DEFINITION_REVISION"
+          fi
+
+          echo "task_definition_revision=$TASK_DEFINITION_REVISION" >> $GITHUB_OUTPUT
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1.7.0
         with:
@@ -92,31 +123,23 @@ jobs:
 
       - name: Download task definition
         run: |
-          TASK_DEFINITION_REVISION=""
-          TASK_DEFINITION_REVISION_INPUT="${{ github.event.inputs.task_definition_revision }}"
 
-          echo "TASK_DEFINITION_REVISION_INPUT: $TASK_DEFINITION_REVISION_INPUT"
-          if [[ "$TASK_DEFINITION_REVISION_INPUT" != "latest" ]]; then
-            TASK_DEFINITION_REVISION=":$TASK_DEFINITION_REVISION_INPUT"
-          fi
-          echo "Task Definition Revision: $TASK_DEFINITION_REVISION"
-          TASK_DEFINITION="${{ needs.find_constants.outputs.task_definition_name }}$TASK_DEFINITION_REVISION"
-          echo "Task Definition: $TASK_DEFINITION"
+          TASK_DEFINITION="${{ steps.constants.outputs.task_definition_name }}${{ steps.constants.outputs.task_definition_revision }}"
           aws ecs describe-task-definition --task-definition "$TASK_DEFINITION" --query taskDefinition > task-definition.json
 
       - name: Render Amazon ECS task definition
         id: render-container-task-definition
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        uses: aws-actions/amazon-ecs-render-task-definition@v1.1.1
         with:
           task-definition: task-definition.json
-          container-name: ${{ needs.find_constants.outputs.task_definition_container_name }}
+          container-name: ${{ steps.constants.outputs.task_definition_container_name }}
           image: ${{ needs.find_constants.outputs.ecr_repository_url }}:${{ github.event.inputs.image_tag }}
 
       - name: Deploy to Amazon ECS service
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1.4.10
         with:
           task-definition: ${{ steps.render-container-task-definition.outputs.task-definition }}
-          service: ${{ needs.find_constants.outputs.ecs_service_name }}
+          service: ${{ steps.constants.outputs.ecs_service_name }}
           cluster: ${{ needs.find_constants.outputs.ecs_cluster_name }}
           wait-for-service-stability: true
 
