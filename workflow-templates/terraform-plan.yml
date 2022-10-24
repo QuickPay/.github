@@ -272,18 +272,12 @@ jobs:
           git commit -m "upload $COMMIT_SHA.tfplan"
           git push origin $BRANCH
 
-      - name: Retrieve plan
-        run: |
-          echo "PLAN<<__EOF__" >> $GITHUB_ENV
-          cat /tmp/plan.txt >> $GITHUB_ENV
-          echo "__EOF__" >> $GITHUB_ENV
-
       - name: Upload Plan to Pastie
         id: pastie
-        uses: QuickPay/pastie-upload-action@v1.0.1
+        uses: QuickPay/pastie-upload-action@v1.1.0
         with:
           credentials: ${{ secrets.PASTIE_CREDENTIALS }}
-          document_env: "PLAN"
+          document_path: "/tmp/plan.txt"
 
       - name: "Comment PR"
         uses: actions/github-script@v3
