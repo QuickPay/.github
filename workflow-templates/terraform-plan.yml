@@ -256,13 +256,6 @@ jobs:
           terraform show $WORKSPACE.tfplan -no-color | grep -v "^::" | grep -v "^\[command\]" >> /tmp/plan.txt
           mv $WORKSPACE.tfplan /tmp/plan.tfplan
 
-      - name: Upload Plan to Pastie
-        id: pastie
-        uses: QuickPay/pastie-upload-action@v1.0.1
-        with:
-          credentials: ${{ secrets.PASTIE_CREDENTIALS }}
-          document_env: "PLAN"
-
       - name: Upload Plan
         env:
           BRANCH: __plan_branch_${{ steps.credentials.outputs.name }}
@@ -284,6 +277,13 @@ jobs:
           echo "PLAN<<__EOF__" >> $GITHUB_ENV
           cat /tmp/plan.txt >> $GITHUB_ENV
           echo "__EOF__" >> $GITHUB_ENV
+
+      - name: Upload Plan to Pastie
+        id: pastie
+        uses: QuickPay/pastie-upload-action@v1.0.1
+        with:
+          credentials: ${{ secrets.PASTIE_CREDENTIALS }}
+          document_env: "PLAN"
 
       - name: "Comment PR"
         uses: actions/github-script@v3
