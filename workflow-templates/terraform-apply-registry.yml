@@ -100,18 +100,12 @@ jobs:
           terraform workspace select quickpay-${{ steps.credentials.outputs.name }}
           terraform apply -input=false plan.tfplan -no-color 2>&1 | tee -a /tmp/apply.txt
 
-      - name: Retrieve apply
-        run: |
-          echo "APPLY<<__EOF__" >> $GITHUB_ENV
-          cat /tmp/apply.txt >> $GITHUB_ENV
-          echo "__EOF__" >> $GITHUB_ENV
-
       - name: Upload Apply to Pastie
         id: pastie
-        uses: QuickPay/pastie-upload-action@v1.0.1
+        uses: QuickPay/pastie-upload-action@v1.1.0
         with:
           credentials: ${{ secrets.PASTIE_CREDENTIALS }}
-          document_env: "APPLY"
+          document_path: "/tmp/apply.txt"
 
       - name: "Comment PR"
         uses: actions/github-script@v3
