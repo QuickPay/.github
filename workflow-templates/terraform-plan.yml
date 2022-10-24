@@ -253,12 +253,15 @@ jobs:
           terraform init -input=false
           terraform workspace select $WORKSPACE
           terraform plan -input=false -var-file=$WORKSPACE.tfvars -out=$WORKSPACE.tfplan
-          printf "# ${{ steps.credentials.outputs.name }}" > /tmp/plan.txt
-          echo $'\n' >> /tmp/plan.txt
-          echo '```' >> /tmp/plan.txt
           terraform show $WORKSPACE.tfplan -no-color | grep -v "^::" | grep -v "^\[command\]" >> /tmp/plan.txt
-          echo '```' >> /tmp/plan.txt
           mv $WORKSPACE.tfplan /tmp/plan.tfplan
+
+      - name: Upload Plan to Pastie
+        id: pastie
+        uses: QuickPay/pastie-upload-action@v1.0.1
+        with:
+          credentials: ${{ secrets.PASTIE_CREDENTIALS }}
+          document_env: "PLAN"
 
       - name: Upload Plan
         env:
@@ -289,4 +292,7 @@ jobs:
           script: |
             const pr_num = parseInt("${{ steps.pr.outputs.number }}")
             const { repo: { owner, repo }  } = context;
-            github.issues.createComment({ issue_number: pr_num, owner, repo, body: process.env.PLAN });
+            const url = "${{ steps.pastie.outputs.url }}";
+            const title = "# ${{ steps.credentials.outputs.name }} Plan";
+            const body = `${title}\n${url}`;
+            github.issues.createComment({ issue_number: pr_num, owner, repo, body: body });

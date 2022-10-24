@@ -155,11 +155,7 @@ jobs:
 
           terraform init -input=false
           terraform workspace select quickpay-${{ matrix.name }}
-          printf "# ${{ steps.credentials.outputs.name }}" > /tmp/apply.txt
-          echo $'\n' >> /tmp/apply.txt
-          echo '```' >> /tmp/apply.txt
           terraform apply -input=false plan.tfplan -no-color 2>&1 | tee -a /tmp/apply.txt
-          echo '```' >> /tmp/apply.txt
 
       - name: Retrieve apply
         if: steps.is_run.outputs.is_run
@@ -167,6 +163,13 @@ jobs:
           echo "APPLY<<__EOF__" >> $GITHUB_ENV
           cat /tmp/apply.txt >> $GITHUB_ENV
           echo "__EOF__" >> $GITHUB_ENV
+
+      - name: Upload Apply to Pastie
+        id: pastie
+        uses: QuickPay/pastie-upload-action@v1.0.1
+        with:
+          credentials: ${{ secrets.PASTIE_CREDENTIALS }}
+          document_env: "APPLY"
 
       - name: "Comment PR"
         if: steps.is_run.outputs.is_run
@@ -176,7 +179,10 @@ jobs:
           script: |
             const pr_num = parseInt("${{ steps.pr.outputs.number }}")
             const { repo: { owner, repo }  } = context;
-            github.issues.createComment({ issue_number: pr_num, owner, repo, body: process.env.APPLY });
+            const url = "${{ steps.pastie.outputs.url }}";
+            const title = "# ${{ steps.credentials.outputs.name }} Apply";
+            const body = `${title}\n${url}`;
+            github.issues.createComment({ issue_number: pr_num, owner, repo, body: body });
 
   merge:
     runs-on: ubuntu-latest
