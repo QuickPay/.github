@@ -176,29 +176,3 @@ jobs:
             const title = "# ${{ steps.credentials.outputs.name }} Apply";
             const body = `${title}\n${url}`;
             github.issues.createComment({ issue_number: pr_num, owner, repo, body: body });
-
-  merge:
-    runs-on: ubuntu-latest
-    needs: [apply]
-    steps:
-      - name: Extract is_run
-        id: is_run
-        run: |
-          if [[ "${{ github.event.comment.body }}" = *"prod" ]]; then
-            echo "is_run=prod" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Extract PR number
-        if: steps.is_run.outputs.is_run == 'prod'
-        id: pr
-        run: |
-          PR_URL="${{ github.event.issue.pull_request.url }}"
-          PR_NUM=${PR_URL##*/}
-          echo "number=$PR_NUM" >> $GITHUB_OUTPUT
-
-      - name: Merge PR
-        if: steps.is_run.outputs.is_run == 'prod'
-        uses: juliangruber/merge-pull-request-action@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          number: ${{ steps.pr.outputs.number }}
