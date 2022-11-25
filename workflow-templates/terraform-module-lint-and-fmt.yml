@@ -1,4 +1,4 @@
-name: Terraform Lint and fmt
+name: Terraform Module Lint and fmt
 
 on:
   push:
