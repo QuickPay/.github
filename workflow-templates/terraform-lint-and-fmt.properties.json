@@ -1,0 +1,6 @@
+{
+  "name": "Terraform Lint and Format",
+  "description": "Lint and Format Terraform infrastructure",
+  "categories": ["HCL"],
+  "filePatterns": ["*.tf", "*.hcl"]
+}

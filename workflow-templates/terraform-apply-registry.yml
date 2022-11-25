@@ -20,6 +20,10 @@ jobs:
     needs: [check_pr, check_apply]
     environment: terraform
     steps:
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.GHA_DEPLOY_KEY }}
+
       - name: Extract PR number
         id: pr
         run: |
