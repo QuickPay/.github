@@ -15,6 +15,7 @@ branches=(
   "nonpci-prod"
   "pci-stag"
   "pci-prod"
+  "root"
 )
 for t in ${branches[@]}; do
   git switch --orphan "__plan_branch_$t"
