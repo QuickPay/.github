@@ -85,6 +85,7 @@ jobs:
           terraform workspace new quickpay-nonpci-prod || true
           terraform workspace new quickpay-internal-stag || true
           terraform workspace new quickpay-internal-prod || true
+          terraform workspace new quickpay-root || true
 
   fmt:
     runs-on: ubuntu-latest
@@ -155,6 +156,7 @@ jobs:
           - nonpci-prod
           - pci-stag
           - pci-prod
+          - root
     steps:
       - uses: webfactory/ssh-agent@v0.7.0
         with:
@@ -209,6 +211,7 @@ jobs:
             ["nonpci-prod"]="${{ secrets.READ_ONLY_PROD_NONPCI_AWS_ACCESS_KEY_ID }}"
             ["pci-stag"]="${{ secrets.READ_ONLY_STAG_PCI_AWS_ACCESS_KEY_ID }}"
             ["pci-prod"]="${{ secrets.READ_ONLY_PROD_PCI_AWS_ACCESS_KEY_ID }}"
+            ["root"]="${{ secrets.READ_ONLY_ROOT_AWS_ACCESS_KEY_ID }}"
           )
           declare -A secret_access_keys=(
             ["registry"]="${{ secrets.READ_ONLY_REGISTRY_AWS_SECRET_ACCESS_KEY }}"
@@ -218,6 +221,7 @@ jobs:
             ["nonpci-prod"]="${{ secrets.READ_ONLY_PROD_NONPCI_AWS_SECRET_ACCESS_KEY }}"
             ["pci-stag"]="${{ secrets.READ_ONLY_STAG_PCI_AWS_SECRET_ACCESS_KEY }}"
             ["pci-prod"]="${{ secrets.READ_ONLY_PROD_PCI_AWS_SECRET_ACCESS_KEY }}"
+            ["root"]="${{ secrets.READ_ONLY_ROOT_AWS_SECRET_ACCESS_KEY }}"
           )
           echo "name=$NAME" >> $GITHUB_OUTPUT
           echo "access_key_id=${access_key_ids[$NAME]}" >> $GITHUB_OUTPUT
