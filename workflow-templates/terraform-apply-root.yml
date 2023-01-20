@@ -59,8 +59,8 @@ jobs:
         id: credentials
         run: |
           echo "name=root" >> $GITHUB_OUTPUT
-          echo "access_key_id=${{ secrets.REGISTRY_AWS_ACCESS_KEY_ID }}" >> $GITHUB_OUTPUT
-          echo "secret_access_key=${{ secrets.REGISTRY_AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
+          echo "access_key_id=${{ secrets.ROOT_AWS_ACCESS_KEY_ID }}" >> $GITHUB_OUTPUT
+          echo "secret_access_key=${{ secrets.ROOT_AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
 
       - uses: aws-actions/configure-aws-credentials@v1.7.0
         with:
