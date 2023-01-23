@@ -116,7 +116,6 @@ jobs:
           terraform apply -input=false plan.tfplan -no-color 2>&1 | tee -a /tmp/apply.txt
 
       - name: Upload Apply to Pastie
-        if: steps.is_run.outputs.is_run
         id: pastie
         uses: QuickPay/pastie-upload-action@v1.1.0
         with:
