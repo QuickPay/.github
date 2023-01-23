@@ -154,6 +154,6 @@ jobs:
           SLACK_ICON_EMOJI: "aws"
           SLACK_USERNAME: Deploy Notification
           SLACK_TITLE: Message
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TECH_QP_DEPLOYS }}
           SLACK_MESSAGE: "*${{ github.event.inputs.environment }}:* ${{ github.actor }} deployed ${{ needs.find_constants.outputs.application_name }} ${{ github.event.inputs.image_tag }}"
           MSG_MINIMAL: true
