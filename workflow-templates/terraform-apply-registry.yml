@@ -84,12 +84,14 @@ jobs:
           terraform_version: 1.3.1
 
       - name: Find plan
+        id: find_plan
         env:
           PLAN_BRANCH: __plan_branch_${{ steps.credentials.outputs.name }}
         run: |
           export PR_BRANCH=$(git rev-parse --abbrev-ref HEAD)
           export COMMIT_SHA=$(git log -n 1 --pretty=format:"%H")  
           echo $PR_BRANCH
+          echo "pr_branch=$PR_BRANCH" >> $GITHUB_OUTPUT
           echo $COMMIT_SHA
           git checkout $PLAN_BRANCH
           git pull origin $PLAN_BRANCH
@@ -122,3 +124,19 @@ jobs:
             const title = "# ${{ steps.credentials.outputs.name }} Apply";
             const body = `${title}\n${url}`;
             github.issues.createComment({ issue_number: pr_num, owner, repo, body: body });
+
+      - name: Slack Notification
+        if: steps.is_run.outputs.is_run
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MSG_AUTHOR: " "
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TECH_QP_DEPLOYS }}
+          SLACK_TITLE: " "
+          SLACK_MESSAGE: "*registry:* ${{ github.actor }} applied terraform for *${{ github.event.repository.name }}:${{ steps.find_plan.outputs.pr_branch }}*. See result at: ${{ steps.pastie.outputs.url }}"
+          MSG_MINIMAL: true
+          SLACK_FOOTER: ""
+
+
+
+

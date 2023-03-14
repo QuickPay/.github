@@ -75,9 +75,11 @@ jobs:
           if [[ "${{ github.event.comment.body }}" = *"stag" ]]; then
             if [[ "${{ matrix.name }}" = *"stag" ]]; then
               echo "is_run=stag" >> $GITHUB_OUTPUT
+              echo "ENV=stag" >> $GITHUB_ENV
             fi
           elif [[ "${{ github.event.comment.body }}" = *"prod" ]]; then
             echo "is_run=prod" >> $GITHUB_OUTPUT
+            echo "ENV=prod" >> $GITHUB_ENV
           fi
 
       - name: Extract credentials
@@ -107,6 +109,11 @@ jobs:
           echo "secret_access_key=${secret_access_keys[$NAME]}" >> $GITHUB_OUTPUT
           echo "GRAFANA_AUTH=${{ secrets.GRAFANA_API_KEY }}" >> $GITHUB_ENV
           echo "HUMIO_API_TOKEN=${{ secrets.HUMIO_API_TOKEN }}" >> $GITHUB_ENV
+          declare -A slack_webhook_deploy=(
+            ["stag"]="${{ secrets.SLACK_WEBHOOK_TECH_QP_DEPLOYS_STAGING }}"
+            ["prod"]="${{ secrets.SLACK_WEBHOOK_TECH_QP_DEPLOYS }}"
+          )
+          echo "slack_webhook_deploy=${slack_webhook_deploy[$ENV]}" >> $GITHUB_OUTPUT
 
       - uses: aws-actions/configure-aws-credentials@v1.7.0
         if: steps.is_run.outputs.is_run
@@ -134,12 +141,14 @@ jobs:
 
       - name: Find plan
         if: steps.is_run.outputs.is_run
+        id: find_plan
         env:
           PLAN_BRANCH: __plan_branch_${{ steps.credentials.outputs.name }}
         run: |
           export PR_BRANCH=$(git rev-parse --abbrev-ref HEAD)
           export COMMIT_SHA=$(git log -n 1 --pretty=format:"%H")  
           echo $PR_BRANCH
+          echo "pr_branch=$PR_BRANCH" >> $GITHUB_OUTPUT
           echo $COMMIT_SHA
           git checkout $PLAN_BRANCH
           git pull origin $PLAN_BRANCH
@@ -181,3 +190,19 @@ jobs:
             const title = "# ${{ steps.credentials.outputs.name }} Apply";
             const body = `${title}\n${url}`;
             github.issues.createComment({ issue_number: pr_num, owner, repo, body: body });
+
+      - name: Slack Notification
+        if: steps.is_run.outputs.is_run
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MSG_AUTHOR: " "
+          SLACK_WEBHOOK: ${{ steps.credentials.outputs.slack_webhook_deploy }}
+          SLACK_TITLE: " "
+          SLACK_MESSAGE: "*${{ matrix.name }}:* ${{ github.actor }} applied terraform for *${{ github.event.repository.name }}:${{ steps.find_plan.outputs.pr_branch }}*. See result at: ${{ steps.pastie.outputs.url }}"
+          MSG_MINIMAL: true
+          SLACK_FOOTER: ""
+
+
+
+
