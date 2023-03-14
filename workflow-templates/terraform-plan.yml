@@ -111,10 +111,10 @@ jobs:
         with:
           terraform_version: 1.4.0
 
-      - uses: terraform-linters/setup-tflint@v1
+      - uses: terraform-linters/setup-tflint@v3
         name: Setup TFLint
         with:
-          tflint_version: v0.41.0
+          tflint_version: v0.45.0
 
       - uses: actions/checkout@v2
 
