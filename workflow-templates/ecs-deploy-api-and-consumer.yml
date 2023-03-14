@@ -151,9 +151,9 @@ jobs:
       - uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_ICON_EMOJI: "aws"
-          SLACK_USERNAME: Deploy Notification
-          SLACK_TITLE: Message
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TECH_QP_DEPLOYS }}
           SLACK_MESSAGE: "*${{ github.event.inputs.environment }}:* ${{ github.actor }} deployed ${{ needs.find_constants.outputs.application_name }} ${{ github.event.inputs.image_tag }}"
           MSG_MINIMAL: true
+          SLACK_FOOTER: ""
+          SLACK_MSG_AUTHOR: " "
+          SLACK_TITLE: " "

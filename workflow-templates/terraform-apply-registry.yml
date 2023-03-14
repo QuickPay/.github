@@ -130,12 +130,12 @@ jobs:
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MSG_AUTHOR: " "
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_TECH_QP_DEPLOYS }}
-          SLACK_TITLE: " "
           SLACK_MESSAGE: "*registry:* ${{ github.actor }} applied terraform for *${{ github.event.repository.name }}:${{ steps.find_plan.outputs.pr_branch }}*. See result at: ${{ steps.pastie.outputs.url }}"
           MSG_MINIMAL: true
           SLACK_FOOTER: ""
+          SLACK_MSG_AUTHOR: " "
+          SLACK_TITLE: " "
 
 
 
