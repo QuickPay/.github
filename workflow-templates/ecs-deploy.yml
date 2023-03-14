@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [find_constants]
     steps:
-      - uses: aws-actions/configure-aws-credentials@v1.7.0
+      - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.PUSH_ECR_REGISTRY_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.PUSH_ECR_REGISTRY_AWS_SECRET_ACCESS_KEY }}
@@ -91,7 +91,7 @@ jobs:
     needs: [check_valid_input, find_constants]
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1.7.0
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.DEPLOY_USER_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DEPLOY_USER_AWS_SECRET_ACCESS_KEY }}

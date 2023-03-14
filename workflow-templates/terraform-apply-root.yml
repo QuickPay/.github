@@ -32,7 +32,7 @@ jobs:
           echo "number=$PR_NUM" >> $GITHUB_OUTPUT
 
       - name: Fail if Unapproved
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           script: |
             const pr_num = parseInt("${{ steps.pr.outputs.number }}")
@@ -62,7 +62,7 @@ jobs:
           echo "access_key_id=${{ secrets.ROOT_AWS_ACCESS_KEY_ID }}" >> $GITHUB_OUTPUT
           echo "secret_access_key=${{ secrets.ROOT_AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
 
-      - uses: aws-actions/configure-aws-credentials@v1.7.0
+      - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
           aws-secret-access-key: ${{ steps.credentials.outputs.secret_access_key }}
@@ -74,14 +74,14 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           ref: ${{ steps.refs.outputs.head_ref }}
 
-      - uses: hashicorp/setup-terraform@v1
+      - uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.3.1
+          terraform_version: 1.4.0
 
       - name: Find plan
         id: find_plan
@@ -104,7 +104,6 @@ jobs:
           else
             mv /tmp/plan.tfplan ./plan.tfplan
           fi
-          
 
       - name: Apply plan
         run: |
@@ -125,7 +124,7 @@ jobs:
           document_path: "/tmp/apply.txt"
 
       - name: "Comment PR"
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -134,7 +133,7 @@ jobs:
             const url = "${{ steps.pastie.outputs.url }}";
             const title = "# ${{ steps.credentials.outputs.name }} Apply";
             const body = `${title}\n${url}`;
-            github.issues.createComment({ issue_number: pr_num, owner, repo, body: body });
+            github.rest.issues.createComment({ issue_number: pr_num, owner, repo, body: body });
 
       - name: Slack Notification
         if: steps.is_run.outputs.is_run
@@ -147,7 +146,3 @@ jobs:
           SLACK_FOOTER: ""
           SLACK_MSG_AUTHOR: " "
           SLACK_TITLE: " "
-
-
-
-

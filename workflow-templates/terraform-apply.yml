@@ -42,7 +42,7 @@ jobs:
           echo "number=$PR_NUM" >> $GITHUB_OUTPUT
 
       - name: Fail if Unapproved
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
         with:
@@ -115,7 +115,7 @@ jobs:
           )
           echo "slack_webhook_deploy=${slack_webhook_deploy[$ENV]}" >> $GITHUB_OUTPUT
 
-      - uses: aws-actions/configure-aws-credentials@v1.7.0
+      - uses: aws-actions/configure-aws-credentials@v2
         if: steps.is_run.outputs.is_run
         with:
           aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
@@ -129,15 +129,15 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: steps.is_run.outputs.is_run
         with:
           fetch-depth: 0
           ref: ${{ steps.refs.outputs.head_ref }}
 
-      - uses: hashicorp/setup-terraform@v1
+      - uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.3.1
+          terraform_version: 1.4.0
 
       - name: Find plan
         if: steps.is_run.outputs.is_run
@@ -180,7 +180,7 @@ jobs:
 
       - name: "Comment PR"
         if: steps.is_run.outputs.is_run
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -189,7 +189,7 @@ jobs:
             const url = "${{ steps.pastie.outputs.url }}";
             const title = "# ${{ steps.credentials.outputs.name }} Apply";
             const body = `${title}\n${url}`;
-            github.issues.createComment({ issue_number: pr_num, owner, repo, body: body });
+            github.rest.issues.createComment({ issue_number: pr_num, owner, repo, body: body });
 
       - name: Slack Notification
         if: steps.is_run.outputs.is_run
@@ -202,7 +202,3 @@ jobs:
           SLACK_FOOTER: ""
           SLACK_MSG_AUTHOR: " "
           SLACK_TITLE: " "
-
-
-
-
