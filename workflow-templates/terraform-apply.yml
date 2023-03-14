@@ -115,7 +115,7 @@ jobs:
           )
           echo "slack_webhook_deploy=${slack_webhook_deploy[$ENV]}" >> $GITHUB_OUTPUT
 
-      - uses: aws-actions/configure-aws-credentials@v1.7.0
+      - uses: aws-actions/configure-aws-credentials@v2
         if: steps.is_run.outputs.is_run
         with:
           aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
@@ -202,7 +202,3 @@ jobs:
           SLACK_MESSAGE: "*${{ matrix.name }}:* ${{ github.actor }} applied terraform for *${{ github.event.repository.name }}:${{ steps.find_plan.outputs.pr_branch }}*. See result at: ${{ steps.pastie.outputs.url }}"
           MSG_MINIMAL: true
           SLACK_FOOTER: ""
-
-
-
-

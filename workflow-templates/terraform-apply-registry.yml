@@ -62,7 +62,7 @@ jobs:
           echo "access_key_id=${{ secrets.REGISTRY_AWS_ACCESS_KEY_ID }}" >> $GITHUB_OUTPUT
           echo "secret_access_key=${{ secrets.REGISTRY_AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_OUTPUT
 
-      - uses: aws-actions/configure-aws-credentials@v1.7.0
+      - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ steps.credentials.outputs.access_key_id }}
           aws-secret-access-key: ${{ steps.credentials.outputs.secret_access_key }}
@@ -136,7 +136,3 @@ jobs:
           SLACK_MESSAGE: "*registry:* ${{ github.actor }} applied terraform for *${{ github.event.repository.name }}:${{ steps.find_plan.outputs.pr_branch }}*. See result at: ${{ steps.pastie.outputs.url }}"
           MSG_MINIMAL: true
           SLACK_FOOTER: ""
-
-
-
-
