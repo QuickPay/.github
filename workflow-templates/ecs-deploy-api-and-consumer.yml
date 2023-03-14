@@ -129,14 +129,14 @@ jobs:
 
       - name: Render Amazon ECS task definition
         id: render-container-task-definition
-        uses: aws-actions/amazon-ecs-render-task-definition@v1.1.1
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
           container-name: ${{ steps.constants.outputs.task_definition_container_name }}
           image: ${{ needs.find_constants.outputs.ecr_repository_url }}:${{ github.event.inputs.image_tag }}
 
       - name: Deploy to Amazon ECS service
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1.4.10
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.render-container-task-definition.outputs.task-definition }}
           service: ${{ steps.constants.outputs.ecs_service_name }}

@@ -11,7 +11,7 @@ jobs:
         with:
           terraform_version: 1.4.0
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - run: |
           terraform fmt -check -diff
@@ -28,7 +28,7 @@ jobs:
         with:
           tflint_version: v0.45.0
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - run: |
           tflint --init

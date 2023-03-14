@@ -42,7 +42,7 @@ jobs:
           echo "number=$PR_NUM" >> $GITHUB_OUTPUT
 
       - name: Fail if Unapproved
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
         with:
@@ -129,7 +129,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         if: steps.is_run.outputs.is_run
         with:
           fetch-depth: 0
@@ -180,7 +180,7 @@ jobs:
 
       - name: "Comment PR"
         if: steps.is_run.outputs.is_run
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -189,7 +189,7 @@ jobs:
             const url = "${{ steps.pastie.outputs.url }}";
             const title = "# ${{ steps.credentials.outputs.name }} Apply";
             const body = `${title}\n${url}`;
-            github.issues.createComment({ issue_number: pr_num, owner, repo, body: body });
+            github.rest.issues.createComment({ issue_number: pr_num, owner, repo, body: body });
 
       - name: Slack Notification
         if: steps.is_run.outputs.is_run
