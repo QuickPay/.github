@@ -57,6 +57,13 @@ jobs:
           echo "ecs_cluster_name=$ECS_CLUSTER_NAME" >> $GITHUB_OUTPUT
           echo "ecr_repository_name=$ECR_REPOSITORY_NAME" >> $GITHUB_OUTPUT
           echo "ecr_repository_url=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
+
+          declare -A slack_webhook_deploy=(
+            ["stag"]="${{ secrets.SLACK_WEBHOOK_TECH_QP_DEPLOYS_STAGING }}"
+            ["prod"]="${{ secrets.SLACK_WEBHOOK_TECH_QP_DEPLOYS }}"
+          )
+          echo "slack_webhook_deploy=${slack_webhook_deploy[$ENVIRONMENT_PREFIX]}" >> $GITHUB_OUTPUT
+
   check_valid_input:
     name: "Check Valid Input for Deploy ${{ github.event.inputs.environment }}"
     runs-on: ubuntu-latest
@@ -128,9 +135,9 @@ jobs:
       - uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_ICON_EMOJI: "aws"
-          SLACK_USERNAME: Deploy Notification
-          SLACK_TITLE: Message
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_MESSAGE: "*${{ github.event.inputs.environment }}:* ${{ github.actor }} deployed ${{ needs.find_constants.outputs.application_name }} ${{ github.event.inputs.image_tag }}"
+          SLACK_WEBHOOK: ${{ steps.constants.outputs.slack_webhook_deploy }}
+          SLACK_MESSAGE: "*${{ github.event.inputs.environment }}:* ${{ github.actor }} deployed *${{ needs.find_constants.outputs.application_name }}:${{ github.event.inputs.image_tag }}*"
           MSG_MINIMAL: true
+          SLACK_FOOTER: ""
+          SLACK_MSG_AUTHOR: " "
+          SLACK_TITLE: " "
