@@ -1,0 +1,6 @@
+{
+  "name": "Terraform Apply Pci Stag",
+  "description": "Apply Terraform Pci Stag infrastructure",
+  "categories": ["HCL"],
+  "filePatterns": ["terraform/*.tf", "terraform/*.hcl"]
+}

@@ -1,0 +1,46 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+
+jobs:
+  check_run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            terraform:
+              - 'terraform/**'
+    outputs:
+      should_run: ${{ steps.changes.outputs.terraform }}
+
+  validate:
+    needs: [check_run]
+    if: ${{ needs.check_run.outputs.should_run == 'true' }}
+    uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-terraform-validate.yml@master
+    secrets: inherit
+
+  plan:
+    needs: [validate]
+    if: ${{ needs.check_run.outputs.should_run == 'true' }}
+    uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-terraform-plan.yml@master
+    strategy:
+      matrix:
+        name:
+          - registry
+          - internal-stag
+          - internal-prod
+          - nonpci-stag
+          - nonpci-prod
+          - pci-stag
+          - pci-prod
+          - root
+    with:
+      name: ${{ matrix.name }}
+      ref: ${{ github.head_ref }}
+      pr_number: ${{ github.event.number }}
+    secrets: inherit

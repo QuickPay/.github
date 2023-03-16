@@ -1,0 +1,28 @@
+name: Terraform Apply NonPci Prod
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  extract_vars:
+    runs-on: ubuntu-latest
+    if: github.event.issue.pull_request && github.event.comment.body == '@apply prod'
+    steps:
+      - name: resolve pr refs
+        id: ref
+        uses: eficode/resolve-pr-refs@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+    outputs:
+      ref: ${{ steps.ref.outputs.head_ref }}
+
+  validate:
+    needs: [extract_vars]
+    uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-terraform-apply.yml@master
+    with:
+      name: "nonpci-prod"
+      ref: ${{ needs.extract_vars.outputs.ref }}
+      pr_number: ${{ github.event.issue.number }}
+    secrets: inherit
