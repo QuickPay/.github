@@ -1,0 +1,6 @@
+{
+  "name": "Terraform Apply Internal Prod",
+  "description": "Apply Terraform Internal Prod infrastructure",
+  "categories": ["HCL"],
+  "filePatterns": ["terraform/*.tf", "terraform/*.hcl"]
+}
