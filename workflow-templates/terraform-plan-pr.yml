@@ -29,6 +29,7 @@ jobs:
     if: ${{ needs.check_run.outputs.should_run == 'true' }}
     uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-terraform-plan.yml@master
     strategy:
+      fail-fast: false
       matrix:
         name:
           - registry
