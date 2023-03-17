@@ -1,4 +1,4 @@
-name: Terraform Apply Registry
+name: Terraform Apply Root
 
 on:
   issue_comment:
@@ -7,7 +7,7 @@ on:
 jobs:
   extract_vars:
     runs-on: ubuntu-latest
-    if: github.event.issue.pull_request && github.event.comment.body == '@apply registry'
+    if: github.event.issue.pull_request && github.event.comment.body == '@apply root'
     steps:
       - name: resolve pr refs
         id: ref
@@ -22,7 +22,7 @@ jobs:
     needs: [extract_vars]
     uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-terraform-apply.yml@master
     with:
-      name: "registry"
+      name: "root"
       ref: ${{ needs.extract_vars.outputs.ref }}
       pr_number: ${{ github.event.issue.number }}
     secrets: inherit
