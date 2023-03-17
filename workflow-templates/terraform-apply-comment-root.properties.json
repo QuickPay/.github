@@ -1,6 +1,6 @@
 {
-  "name": "Terraform Apply Root",
-  "description": "Apply Terraform Root infrastructure",
+  "name": "Terraform Apply Registry",
+  "description": "Apply Terraform Registry infrastructure",
   "categories": ["HCL"],
   "filePatterns": ["terraform/*.tf", "terraform/*.hcl"]
 }
