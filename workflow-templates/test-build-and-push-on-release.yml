@@ -1,0 +1,31 @@
+name: Test Build and Push on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  test:
+    uses: ./.github/workflows/call-test.yml
+    secrets: inherit
+
+  constants:
+    runs-on: "ubuntu-latest"
+    outputs:
+      tag: ${{ steps.constants.outputs.tag }}
+    steps:
+      - name: Constants
+        id: constants
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    needs:
+      - test
+      - constants
+    uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-docker-build.yml@master
+    with:
+      image_name: "vipps-psp-backend"
+      image_tag: ${{ needs.constants.outputs.tag }}
+    secrets: inherit

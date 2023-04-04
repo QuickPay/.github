@@ -3,6 +3,7 @@ name: Terraform Plan
 on:
   pull_request:
 
+
 jobs:
   check_run:
     runs-on: ubuntu-latest
@@ -19,13 +20,13 @@ jobs:
       should_run: ${{ steps.changes.outputs.terraform }}
 
   validate:
-    needs: [check_run]
+    needs: [ check_run ]
     if: ${{ needs.check_run.outputs.should_run == 'true' }}
     uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-terraform-validate.yml@master
     secrets: inherit
 
   plan:
-    needs: [validate]
+    needs: [ validate, check_run ]
     if: ${{ needs.check_run.outputs.should_run == 'true' }}
     uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-terraform-plan.yml@master
     strategy:

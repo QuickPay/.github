@@ -1,0 +1,13 @@
+{
+  "name": "Test Build and Push on Release",
+  "description": "Test Build and Push on Release",
+  "categories": [
+    "HCL",
+    "Dockerfile"
+  ],
+  "filePatterns": [
+    "terraform/*.tf",
+    "terraform/*.hcl",
+    "Dockerfile"
+  ]
+}

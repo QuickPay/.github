@@ -1,0 +1,13 @@
+{
+  "name": "Test Build and Push on Branch",
+  "description": "Test Build and Push on Branch push",
+  "categories": [
+    "HCL",
+    "Dockerfile"
+  ],
+  "filePatterns": [
+    "terraform/*.tf",
+    "terraform/*.hcl",
+    "Dockerfile"
+  ]
+}
