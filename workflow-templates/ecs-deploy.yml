@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "the environment to deploy to (terraform isnt valid"
+        description: "the environment to deploy to (terraform isnt valid)"
         type: environment
       image_tag:
         description: "Image tag to deploy"
