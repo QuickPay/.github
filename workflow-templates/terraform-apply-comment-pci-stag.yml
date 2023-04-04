@@ -2,7 +2,7 @@ name: Terraform Apply Pci Stag
 
 on:
   issue_comment:
-    types: [created]
+    types: [ created ]
 
 jobs:
   extract_vars:
@@ -18,8 +18,8 @@ jobs:
     outputs:
       ref: ${{ steps.ref.outputs.head_ref }}
 
-  validate:
-    needs: [extract_vars]
+  apply:
+    needs: [ extract_vars ]
     uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-terraform-apply.yml@master
     with:
       name: "pci-stag"

@@ -1,0 +1,35 @@
+name: Test Build and Push on Branch
+
+on:
+  push:
+    branches:
+      - "**" # matches every branch
+      - "!master" # excludes master
+
+jobs:
+  test:
+    uses: ./.github/workflows/call-test.yml
+    secrets: inherit
+
+  constants:
+    runs-on: "ubuntu-latest"
+    outputs:
+      tag: ${{ steps.constants.outputs.tag }}
+    steps:
+      - name: Constants
+        id: constants
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          COMMIT_SHA="$GITHUB_SHA"
+          TAG="${BRANCH}_${COMMIT_SHA}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    needs:
+      - test
+      - constants
+    uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-docker-build.yml@master
+    with:
+      image_name: "vipps-psp-backend"
+      image_tag: ${{ needs.constants.outputs.tag }}
+    secrets: inherit
