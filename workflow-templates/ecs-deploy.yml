@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
+        description: "the environment to deploy to (terraform isnt valid"
         type: environment
       image_tag:
         description: "Image tag to deploy"
@@ -16,11 +17,11 @@ jobs:
   deploy:
     uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-ecs-deploy.yml@master
     with:
-      image_name: ${{ github.event.repository.name }
+      image_name: ${{ github.event.repository.name }}
       image_tag: ${{ github.event.inputs.image_tag }}
       scope: "pci"
       environment: ${{ github.event.inputs.environment }}
-      application_name: ${{ github.event.repository.name }
+      application_name: ${{ github.event.repository.name }}
       cluster_name: "backend"
       task_definition_revision: ${{ github.event.inputs.task_definition_revision }}
     secrets: inherit

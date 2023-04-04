@@ -21,11 +21,11 @@ jobs:
   deploy_consumer:
     uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-ecs-deploy.yml@master
     with:
-      image_name: ${{ github.event.repository.name }
+      image_name: ${{ github.event.repository.name }}
       image_tag: ${{ github.event.inputs.image_tag }}
       scope: "pci"
       environment: ${{ github.event.inputs.environment }}
-      application_name: ${{ github.event.repository.name }-consumer
+      application_name: ${{ github.event.repository.name }}-consumer
       cluster_name: "backend"
       task_definition_revision: ${{ github.event.inputs.task_definition_revision_consumer }}
     secrets: inherit
@@ -33,11 +33,11 @@ jobs:
   deploy_api:
     uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-ecs-deploy.yml@master
     with:
-      image_name: ${{ github.event.repository.name }
+      image_name: ${{ github.event.repository.name }}
       image_tag: ${{ github.event.inputs.image_tag }}
       scope: "pci"
       environment: ${{ github.event.inputs.environment }}
-      application_name: ${{ github.event.repository.name }-api
+      application_name: ${{ github.event.repository.name }}-api
       cluster_name: "backend"
       task_definition_revision: ${{ github.event.inputs.task_definition_revision_api }}
     secrets: inherit
