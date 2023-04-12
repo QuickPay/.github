@@ -28,7 +28,7 @@ jobs:
 
   slack_message:
     needs: deploy
-    uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-slack-deploy-messsage.yml@master
+    uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-slack-deploy-message.yml@master
     with:
       tag: ${{ inputs.image_tag }}
       scope: "pci"
