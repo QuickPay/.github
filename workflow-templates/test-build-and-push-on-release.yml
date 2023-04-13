@@ -2,7 +2,7 @@ name: Test Build and Push on Release
 
 on:
   release:
-    types: [published]
+    types: [ published ]
 
 jobs:
   test:
@@ -26,6 +26,6 @@ jobs:
       - constants
     uses: QuickPay/github-actions-callable-workflows/.github/workflows/call-docker-build.yml@master
     with:
-      image_name: "vipps-psp-backend"
+      image_name: ${{ github.event.repository.name }}
       image_tag: ${{ needs.constants.outputs.tag }}
     secrets: inherit
